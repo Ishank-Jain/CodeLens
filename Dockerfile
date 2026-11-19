@@ -1,17 +1,17 @@
 # =============================================
 # Stage 1: Install dependencies
 # =============================================
-# Debian Bookworm slim — patches CVEs faster than Alpine
+# Debian Bookworm slim — eliminates Alpine CVEs
 FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Patch any remaining CVEs immediately
+# Security updates & dependencies for bun
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && \
-    apt-get install -y --no-install-recommends unzip && \
+    apt-get install -y --no-install-recommends unzip curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Install bun for faster installs
+# Install bun for fast installs
 RUN npm install -g bun
 
 # Copy package files
@@ -46,7 +46,7 @@ RUN npm run build
 # Stage 3: Production runner (distroless — minimal attack surface)
 # =============================================
 # Distroless: no shell, no package manager, no OS utilities
-# Only contains Node.js runtime + minimal glibc — near-zero CVEs
+# Near-zero CVEs
 FROM gcr.io/distroless/nodejs22-debian12 AS runner
 
 WORKDIR /app
@@ -57,7 +57,6 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Copy built assets from builder
-# Distroless runs as nonroot (uid 65534) by default
 COPY --from=builder --chown=65534:65534 /app/public ./public
 COPY --from=builder --chown=65534:65534 /app/.next/standalone ./
 COPY --from=builder --chown=65534:65534 /app/.next/static ./.next/static
