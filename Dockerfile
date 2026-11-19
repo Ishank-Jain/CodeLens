@@ -1,12 +1,13 @@
 # =============================================
 # Stage 1: Install dependencies
 # =============================================
-FROM node:20-alpine AS deps
+# Node 22 LTS + latest Alpine = fewest CVEs
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
-# Install security patches in base image
-RUN apk update && apk upgrade --no-cache
+# Patch any remaining Alpine CVEs immediately
+RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
 
 # Install bun for faster installs
 RUN npm install -g bun
@@ -14,13 +15,13 @@ RUN npm install -g bun
 # Copy package files
 COPY package.json bun.lock* ./
 
-# Install dependencies (production only — no devDeps in final image)
+# Install dependencies
 RUN bun install --frozen-lockfile || bun install
 
 # =============================================
 # Stage 2: Build the application
 # =============================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -40,41 +41,28 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # =============================================
-# Stage 3: Production runner (minimal)
+# Stage 3: Production runner (distroless — minimal attack surface)
 # =============================================
-FROM node:20-alpine AS runner
+# Distroless: no shell, no package manager, no OS utilities
+# Only contains Node.js runtime + minimal glibc — near-zero CVEs
+FROM gcr.io/distroless/nodejs22-debian12 AS runner
 
 WORKDIR /app
 
-# Install security patches
-RUN apk update && apk upgrade --no-cache && \
-    # Remove package manager caches to reduce image size
-    rm -rf /var/cache/apk/*
-
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy public assets — set ownership to nextjs user
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# Create .next directory with correct ownership before copying into it
-RUN mkdir .next && chown nextjs:nodejs .next
-
-# Copy built standalone server and static assets
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Drop ALL Linux capabilities — the container only needs to run Node
-USER nextjs
-
-EXPOSE 3000
-
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Use dumb-init or tini for proper signal handling (alpine has tini)
-CMD ["node", "server.js"]
+# Copy built assets from builder
+# Distroless runs as nonroot (uid 65534) by default
+COPY --from=builder --chown=65534:65534 /app/public ./public
+COPY --from=builder --chown=65534:65534 /app/.next/standalone ./
+COPY --from=builder --chown=65534:65534 /app/.next/static ./.next/static
+
+# Run as nonroot user (built into distroless)
+USER nonroot
+
+EXPOSE 3000
+
+CMD ["server.js"]
