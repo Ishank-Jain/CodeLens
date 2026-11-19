@@ -1,13 +1,15 @@
 # =============================================
 # Stage 1: Install dependencies
 # =============================================
-# Node 22 LTS + latest Alpine = fewest CVEs
-FROM node:22-alpine AS deps
+# Debian Bookworm slim — patches CVEs faster than Alpine
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Patch any remaining Alpine CVEs immediately
-RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
+# Patch any remaining CVEs immediately
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && \
+    apt-get install -y --no-install-recommends unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install bun for faster installs
 RUN npm install -g bun
@@ -21,7 +23,7 @@ RUN bun install --frozen-lockfile || bun install
 # =============================================
 # Stage 2: Build the application
 # =============================================
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
