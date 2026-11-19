@@ -7,8 +7,8 @@ import ConvexClientProvider from "@/components/provider/ConvexClientProvider";
 import { dark } from "@clerk/themes";
 
 export const metadata: Metadata = {
-  title: "Code Sight AI",
-  description: "Code Sight AI - AI-Powered Code Review Assistant",
+  title: "Code Lens AI",
+  description: "Code Lens AI - AI-Powered Code Review Assistant",
 };
 
 export default async function RootLayout({

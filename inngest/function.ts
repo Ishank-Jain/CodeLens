@@ -8,17 +8,23 @@ import { NonRetriableError } from "inngest";
 export const reviewCode = inngest.createFunction(
   {
     id: "code-sight-ai",
+    retries: 1,
     onFailure: async ({ event, error }) => {
-      const { repoFullName, sha, clerkId, filePath, owner } =
-        event.data.event.data;
-      await fetchMutation(api.review.saveReview, {
-        repoFullName,
-        fileSha: sha,
-        filePath,
-        owner,
-        clerkId,
-        status: "failed",
-      });
+      const eventData = event.data.event.data || {};
+      const { repoFullName, sha, clerkId, filePath, owner } = eventData;
+
+      if (repoFullName && sha && clerkId && filePath && owner) {
+        await fetchMutation(api.review.saveReview, {
+          repoFullName,
+          fileSha: sha,
+          filePath,
+          owner,
+          clerkId,
+          status: "failed",
+        });
+      } else {
+        console.error("Failed to save review failure state: Missing required data in event", eventData);
+      }
     },
   },
   { event: "code.sight.ai/review" },
@@ -91,11 +97,29 @@ export const reviewCode = inngest.createFunction(
     const markdownContent = await step.run("Generate Review", async () => {
       const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-      });
-      return response.text || "No review generated.";
+      const modelsToTry = [
+        "gemini-flash-latest",
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-omni-1.1-flash",
+        "gemini-2.5-pro"
+      ];
+
+      for (const modelName of modelsToTry) {
+        try {
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+          });
+          return response.text || "No review generated.";
+        } catch (error: any) {
+          console.warn(`Model ${modelName} failed, attempting next fallback...`, error?.message);
+          // If this was the last model in the array, throw the error
+          if (modelName === modelsToTry[modelsToTry.length - 1]) {
+            throw new Error(`All fallback models failed due to high demand. Last error: ${error?.message}`);
+          }
+        }
+      }
     });
 
     const Result = await step.run("Save Result", async () => {

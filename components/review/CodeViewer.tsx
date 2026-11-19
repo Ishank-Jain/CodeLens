@@ -52,7 +52,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex-shrink-0 p-3 border-b border-gray-700 flex justify-between items-center">
         <h2 className="text-lg font-semibold truncate">
           {file ? file.path : "Code Viewer"}

@@ -40,7 +40,7 @@ const Header = () => {
         href={"/"}
         className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
       >
-        <img src={"/favicon.ico"} className="size-10" />
+        <img src={"/logo.jpg"} alt="CodeLens Logo" className="size-10 rounded-lg" />
         <h1 className="text-2xl font-bold text-white">CodeLens AI</h1>
       </Link>
       <SignedIn>

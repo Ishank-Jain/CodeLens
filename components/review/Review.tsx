@@ -38,7 +38,7 @@ const Review = ({
   const canReview =
     getUser?.plan === "pro" ||
     (getUser?.lastReviewDate !== today ? 5 : (getUser?.reviewsRemaining ?? 0)) >
-      0;
+    0;
 
   const [selectedFile, setSelectedFile] = useState<{
     path: string;
@@ -203,8 +203,8 @@ const Review = ({
             )}
           </div>
         </div>
-        <div className="md:col-span-3 lg:col-span-4 flex flex-col space-y-4 h-[80vh]">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="md:col-span-3 lg:col-span-4 flex flex-col space-y-4 h-full">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 flex-none max-h-[40vh] flex flex-col min-h-0 overflow-hidden">
             <CodeViewer
               file={selectedFile}
               isLoading={isLoadingFile}

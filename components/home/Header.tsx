@@ -7,7 +7,7 @@ const Header = () => {
     <header className="absolute top-0 left-0 right-0 z-30 py-4">
       <div className="container mx-auto px-4 flex justify-between items-center">
         <Link href={"/"} className="flex items-center space-x-3">
-          <img src={"/favicon.ico"} className="size-10" />
+          <img src={"/logo.jpg"} alt="CodeLens Logo" className="size-10 rounded-lg" />
           <h1 className="text-2xl font-bold text-white">CodeLens</h1>
         </Link>
         <nav className="hidden md:flex items-center space-x-8">
