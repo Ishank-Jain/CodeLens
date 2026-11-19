@@ -1,0 +1,153 @@
+services:
+  # ─── Reverse Proxy & Load Balancer ──────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      nextjs-app:
+        condition: service_healthy
+    restart: unless-stopped
+    # Drop all capabilities, only add what nginx needs
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # bind to ports 80/443
+      - CHOWN
+      - SETGID
+      - SETUID
+    # Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /var/log/nginx
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - codelens-network
+
+  # ─── Next.js Application ───────────────────
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL}
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    env_file: .env.local
+    environment:
+      - NODE_ENV=production
+      - INNGEST_EVENT_API_URL=http://inngest-server:8288
+      - INNGEST_SERVE_HOST=http://nextjs-app:3000
+    expose:
+      - "3000"
+    depends_on:
+      inngest-server:
+        condition: service_started
+    restart: unless-stopped
+    # Security hardening
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      # Distroless has no shell/wget — use Node.js directly for health checks
+      test: ["CMD", "/nodejs/bin/node", "-e", "fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - codelens-network
+
+  # ─── Inngest Background Job Server ─────────
+  inngest-server:
+    image: inngest/inngest:latest
+    command: >
+      inngest dev
+      -u http://nextjs-app:3000/api/inngest
+      --no-discovery
+    # FIXED: Don't expose Inngest dashboard to host in production
+    expose:
+      - "8288"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+    networks:
+      - codelens-network
+
+  # ─── Redis (Inngest State Store) ────────────
+  redis:
+    image: redis:7.4-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --protected-mode yes
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
+      --rename-command DEBUG ""
+      --rename-command CONFIG ""
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    restart: unless-stopped
+    # Security hardening
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: "0.15"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - codelens-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  codelens-network:
+    driver: bridge
