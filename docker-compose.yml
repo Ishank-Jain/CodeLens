@@ -24,6 +24,7 @@ services:
     tmpfs:
       - /var/cache/nginx
       - /var/run
+      - /var/log/nginx
       - /tmp
     security_opt:
       - no-new-privileges:true
@@ -121,6 +122,10 @@ services:
     # Security hardening
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     read_only: true
     tmpfs:
       - /tmp
