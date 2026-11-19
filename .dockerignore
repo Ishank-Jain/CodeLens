@@ -54,6 +54,7 @@ AGENTS.md
 .agents
 .claude
 scratch*
+fetchReviews.ts
 
 # Nginx config (mounted as volume, not built into app)
 nginx
