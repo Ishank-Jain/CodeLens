@@ -40,7 +40,7 @@ describe("inngest function - reviewCode", () => {
 
   it("should process the review successfully given valid event data", async () => {
     const handler = (reviewCode as any).handler;
-    
+
     // Mock the `step.run` behavior
     const step = {
       run: vi.fn(async (name, fn) => {
@@ -64,7 +64,7 @@ describe("inngest function - reviewCode", () => {
     const result = await handler({ event, step });
 
     expect(step.run).toHaveBeenCalledTimes(4);
-    
+
     // Ensure convex mutation was called to save the review
     expect(fetchMutation).toHaveBeenCalled();
     expect(result).toEqual({
@@ -75,7 +75,7 @@ describe("inngest function - reviewCode", () => {
 
   it("should throw an error if event data is missing", async () => {
     const handler = (reviewCode as any).handler;
-    
+
     const event = {
       data: {
         // Missing data
