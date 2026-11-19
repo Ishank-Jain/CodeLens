@@ -7,7 +7,7 @@ import { NonRetriableError } from "inngest";
 
 export const reviewCode = inngest.createFunction(
   {
-    id: "code-lens-ai",
+    id: "code-sight-ai",
     retries: 1,
     onFailure: async ({ event, error }) => {
       const eventData = event.data.event.data || {};

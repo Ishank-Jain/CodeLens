@@ -34,7 +34,7 @@ describe("inngest function - reviewCode", () => {
   });
 
   it("should have correct config and trigger", () => {
-    expect((reviewCode as any).config.id).toBe("code-lens-ai");
+    expect((reviewCode as any).config.id).toBe("code-sight-ai");
     expect((reviewCode as any).trigger.event).toBe("code.sight.ai/review");
   });
 
